@@ -4,43 +4,31 @@ import torch.nn.functional as F
 
 
 class Net(nn.Module):
-
-    # This constructor will initialize the model architecture
     def __init__(self):
         super(Net, self).__init__()
+        # 1 input image channel, 6 output channels, 3x3 square convolution
+        # kernel
+        self.conv1 = nn.Conv2d(1, 6, 3)
+        self.conv2 = nn.Conv2d(6, 16, 3)
+        # an affine operation: y = Wx + b
+        self.fc1 = nn.Linear(16 * 6 * 6, 120)  # 6*6 from image dimension
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
 
-        self.cnn_layers = nn.Sequential(
-            # Defining a 2D convolution layer
-            nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
-            # Putting a 2D Batchnorm after CNN layer
-            nn.BatchNorm2d(32),
-            # Adding Relu Activation
-            nn.ReLU(inplace=True),
-            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-        )
-
-        self.linear_layers = nn.Sequential(
-            # Adding Dropout
-            nn.Dropout(p=0.5),
-            nn.Linear(32 * 32 * 32, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5),
-            nn.Linear(512, 10),
-        )
-
-    # Defining the forward pass
     def forward(self, x):
+        # Max pooling over a (2, 2) window
+        x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
+        # If the size is a square you can only specify a single number
+        x = F.max_pool2d(F.relu(self.conv2(x)), 2)
+        x = x.view(-1, self.num_flat_features(x))
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
-        # Forward Pass through the CNN Layers
-        x = self.cnn_layers(
-            x
-        )  # look at these layers | can i make this a resnet 34 Net? look into it
-        x = x.view(x.size(0), -1)
-        # Forwrd pass through Fully Connected Layers
-        x = self.linear_layers(x)
-        return F.log_softmax(x)
-
+    def num_flat_features(self, x):
+        size = x.size()[1:]  # all dimensions except the batch dimension
+        num_features = 1
+        for s in size:
+            num_features *= s
+        return num_features
