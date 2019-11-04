@@ -7,6 +7,8 @@ from torch.utils.data import *
 import os
 import random
 import math
+from compress_pickle import dump, load
+
 
 # TODO(G): finish this transform code
 '''class ToTripleTensor(object):
@@ -102,10 +104,9 @@ class CustomDatasetNPY(torch.utils.data.Dataset):
         # print("tensor shape:", tensor.shape)
         # tensor = tensor.type(torch.LongTensor)
         triple_tensor = torch.stack(list(tensor) * 3, dim=0)
+        # normalize tensor given mean and std dev. from ResNet architecture
         transformed_tensor = torchvision.transforms.functional.normalize(triple_tensor, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        # print("transformed slice shape:", transformed_tensor.shape)
-        # transformed_tensor = np.concatenate(tuple(list(transformed_slice) * 3), axis=0)
-        # print("transformed tensor shape:",transformed_tensor.shape)
+        
         if self.train_or_valid == "valid" and index > 1129:
             y = self.Y[index - 1130]
         else:
@@ -122,16 +123,25 @@ class CustomDatasetNPY(torch.utils.data.Dataset):
 
 def main():
     # Create Dataset and DataLoader for training and validation dataset
+    '''train_loader_pickle = open("train_loader.pickle", "wb")
+    valid_loader_pickle = open("valid_loader.pickle", "wb")'''
+    
     dataset_train = CustomDatasetNPY("train")
     train_loader = torch.utils.data.DataLoader(
         dataset_train, batch_size=4, shuffle=True  # , num_workers=4
     )
     dataset_valid = CustomDatasetNPY("valid")
-    test_loader = torch.utils.data.DataLoader(
+    valid_loader = torch.utils.data.DataLoader(
         dataset_valid, batch_size=4, shuffle=True  # , num_workers=4
     )
+    dump(train_loader, "train_loader.gz")
+    dump(train_loader, "train_loader.pkl")
+    dump(valid_loader, "valid_loader.gz")
+    
+    print(os.path.getsize("train_loader.gz"))
+    print(os.path.getsize("train_loader.pkl"))
 
-    for index, (tensor, ground) in enumerate(test_loader):
+    for index, (tensor, ground) in enumerate(valid_loader):
         print("index:", index)
         print("tensor:", tensor.shape)
         print("truth:", ground)
