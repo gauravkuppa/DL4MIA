@@ -16,6 +16,7 @@ from tqdm import tqdm
 from custom_dataset_npy import CustomDatasetNPY
 from net import Net
 import pickle
+import matplotlib
 
 multiprocessing.set_start_method("spawn", True)
 
@@ -82,7 +83,7 @@ class Model(object):
         train_accuracy = []
         valid_loss = []
         valid_accuracy = []
-        stats = {"train":[train_loss, train_accuracy],"valid":[valid_loss, valid_accuracy]}
+        self.stats = {"train":[train_loss, train_accuracy],"valid":[valid_loss, valid_accuracy]}
         best_model_wts = copy.deepcopy(net.state_dict())
         best_acc = 0.0
 
@@ -140,9 +141,9 @@ class Model(object):
                     scheduler.step()
 
                 epoch_loss = running_loss / self.dataset_sizes[phase]
-                epoch_acc = running_corrects.double() / self.dataset_sizes[phase]
-                stats[phase][0].append(epoch_loss)
-                stats[phase][1].append(epoch_acc)
+                epoch_acc = running_corrects.double().item() / self.dataset_sizes[phase]
+                self.stats[phase][0].append(epoch_loss)
+                self.stats[phase][1].append(epoch_acc)
                 print(
                     "{} Loss: {:.4f} Acc: {:.4f}".format(phase, epoch_loss, epoch_acc)
                 )
@@ -180,9 +181,27 @@ class Model(object):
                 plt.show()
 
     # TODO(G): make a plot_results() method
-    #def plot_results(self, epochs, loss_acc):
-
-
+    def plot_results(self, epochs, loss_acc):
+        train_loss, train_accuracy, valid_loss, valid_accuracy = loss_acc
+        fig = plt.figure(figsize=(20,4))
+        ax = fig.add_subplot(1, 2, 1)
+        plt.title("Train - Validation Loss")
+        plt.plot(list(np.arange(epochs) + 1) , train_loss, label='train')
+        plt.plot(list(np.arange(epochs) + 1), valid_loss, label='validation')
+        plt.xlabel('num_epochs', fontsize=12)
+        plt.ylabel('loss', fontsize=12)
+        ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
+        plt.legend(loc='best')
+        
+        ax = fig.add_subplot(1, 2, 2)
+        plt.title("Train - Validation Accuracy")
+        plt.plot(list(np.arange(epochs) + 1) , train_accuracy, label='train')
+        plt.plot(list(np.arange(epochs) + 1), valid_accuracy, label='validation')
+        plt.xlabel('num_epochs', fontsize=12)
+        plt.ylabel('accuracy', fontsize=12)
+        ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
+        plt.legend(loc='best')
+        plt.show()
 
 def main():
     model = Model()
@@ -210,22 +229,28 @@ def main():
     train_accuracy = []
     valid_loss = []
     valid_accuracy = []
-    epochs = 1
+    epochs = 3
     train_loss_pickle = open("train_loss.pickle","wb")
     train_acc_pickle = open("train_acc.pickle","wb")
     valid_loss_pickle = open("train_loss.pickle","wb")
     valid_acc_pickle = open("valid_acc.pickle","wb")
-
+    
     model.train(model.net, criterion, optimizer_ft, exp_lr_scheduler, num_epochs=epochs)
-
+    train_loss, train_accuracy = model.stats['train']
+    valid_loss, valid_accuracy = model.stats['valid']
     pickle.dump(train_loss, train_loss_pickle)
     pickle.dump(train_accuracy, train_acc_pickle)
     pickle.dump(valid_loss, valid_loss_pickle)
     pickle.dump(valid_accuracy, valid_acc_pickle)
 
+    train_acc_pickle.close()
+    train_loss_pickle.close()
+    valid_acc_pickle.close()
+    valid_loss_pickle.close()
+    
     loss_acc = [train_loss, train_accuracy, valid_loss, valid_accuracy]
 
-    #model.plot_results(epochs, loss_acc)
+    model.plot_results(epochs, loss_acc)
     
 
 
