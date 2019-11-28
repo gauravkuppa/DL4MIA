@@ -82,7 +82,27 @@ class CustomDatasetNPY(torch.utils.data.Dataset):
                 y = self.Y[index]
             
             return (transformed_tensor, y)
-        
+        elif isinstance(index, slice):
+            returnArr = []
+            for val in range(index.start, index.stop):
+                x_slice = self.X_slices[val]
+                x = np.squeeze(x_slice, axis=0)
+                pil_image = torchvision.transforms.functional.to_pil_image(x)
+                tensor = torchvision.transforms.functional.to_tensor(pil_image)
+                triple_tensor = torch.stack(list(tensor) * 3, dim=0)
+                # normalize tensor given mean and std dev. from ResNet architecture
+                transformed_tensor = torchvision.transforms.functional.normalize(triple_tensor, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                
+                if self.train_or_valid == "valid" and val > 1129:
+                    y = self.Y[val - 1130]
+                else:
+                    y = self.Y[val]
+                
+                returnArr.append((transformed_tensor, y))
+            
+            return returnArr
+            
+
 
     def __len__(self):
         """
