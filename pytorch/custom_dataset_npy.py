@@ -9,25 +9,7 @@ import random
 import math
 from compress_pickle import dump, load
 
-
-# TODO(G): finish this transform code
-'''class ToTripleTensor(object):
-    """Convert ndarrays in sample to Tensors."""
-
-    def __call__(self, sample):
-        image, landmarks = sample['image'], sample['landmarks']
-
-        # swap color axis because
-        # numpy image: H x W x C
-        # torch image: C X H X W
-        image = image.transpose((2, 0, 1))
-        image = 
-        return {'image': torch.from_numpy(image),
-                'landmarks': torch.from_numpy(landmarks)}'''
-
 class CustomDatasetNPY(torch.utils.data.Dataset):
-
-    
 
     def __init__(self, train_or_valid):
         """
@@ -45,7 +27,7 @@ class CustomDatasetNPY(torch.utils.data.Dataset):
         self.X = list()
         self.X_slices = list()
         self.Y = None
-        #dataset processing
+        #dataset processinggit 
         self.Y = np.genfromtxt(y_path, delimiter=",")
 
         if train_or_valid == "valid":
@@ -58,6 +40,9 @@ class CustomDatasetNPY(torch.utils.data.Dataset):
         
         for file in os.listdir(x_path):
             if file.endswith(".npy"):
+                val = file.split('.')[1][0]
+                if val == '_':
+                    continue
                 if int(file.split(".")[0]) not in list(range(1126, 1130)):
                     print("file:", file)
                     x = np.load(x_path + "/" + file)
@@ -74,18 +59,6 @@ class CustomDatasetNPY(torch.utils.data.Dataset):
             self.X_slices.append(x)
 
         
-
-        
-        '''self.transforms1 = torchvision.transforms.Compose(
-            [
-                torchvision.transforms.ToPILImage(),
-                # torchvision.transforms.RandomGrayscale(),
-                torchvision.transforms.ToTensor(),
-                torchviion.transforms.Lambda(lambda img: ),
-                torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-            ]
-        )'''
-        #
         self.length = len(self.X_slices)
 
     def __getitem__(self, index):
@@ -93,26 +66,23 @@ class CustomDatasetNPY(torch.utils.data.Dataset):
         Args:
         return (Image, Ground_truth)
         """
- 
-        print("index:", index)
-        x_slice = self.X_slices[index]
-        # print("x slice shape:", x_slice.shape)
-        x = np.squeeze(x_slice, axis=0)
-        pil_image = torchvision.transforms.functional.to_pil_image(x)
-        tensor = torchvision.transforms.functional.to_tensor(pil_image)
-        # 
-        # print("tensor shape:", tensor.shape)
-        # tensor = tensor.type(torch.LongTensor)
-        triple_tensor = torch.stack(list(tensor) * 3, dim=0)
-        # normalize tensor given mean and std dev. from ResNet architecture
-        transformed_tensor = torchvision.transforms.functional.normalize(triple_tensor, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        if isinstance(index, int):
+            print("index:", index)
+            x_slice = self.X_slices[index]
+            x = np.squeeze(x_slice, axis=0)
+            pil_image = torchvision.transforms.functional.to_pil_image(x)
+            tensor = torchvision.transforms.functional.to_tensor(pil_image)
+            triple_tensor = torch.stack(list(tensor) * 3, dim=0)
+            # normalize tensor given mean and std dev. from ResNet architecture
+            transformed_tensor = torchvision.transforms.functional.normalize(triple_tensor, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            
+            if self.train_or_valid == "valid" and index > 1129:
+                y = self.Y[index - 1130]
+            else:
+                y = self.Y[index]
+            
+            return (transformed_tensor, y)
         
-        if self.train_or_valid == "valid" and index > 1129:
-            y = self.Y[index - 1130]
-        else:
-            y = self.Y[index]
-
-        return (transformed_tensor, y)
 
     def __len__(self):
         """
@@ -134,17 +104,26 @@ def main():
     valid_loader = torch.utils.data.DataLoader(
         dataset_valid, batch_size=4, shuffle=True  # , num_workers=4
     )
-    dump(train_loader, "train_loader.gz")
+    '''dump(train_loader, "train_loader.gz")
     dump(train_loader, "train_loader.pkl")
     dump(valid_loader, "valid_loader.gz")
     
     print(os.path.getsize("train_loader.gz"))
-    print(os.path.getsize("train_loader.pkl"))
+    print(os.path.getsize("train_loader.pkl"))'''
 
-    for index, (tensor, ground) in enumerate(valid_loader):
+    '''for index, (tensor, ground) in enumerate(valid_loader):
         print("index:", index)
         print("tensor:", tensor.shape)
-        print("truth:", ground)
+        print("truth:", ground)'''
+
+    loader_iter = iter(train_loader)
+    dataset_iter = iter(dataset_train)
+
+    print(next(loader_iter))
+    print("#1:",next(dataset_iter))
+    print("#2:",next(dataset_iter))
+    print("#3:",next(dataset_iter))
+    print("#4:",next(dataset_iter))
 
     
 

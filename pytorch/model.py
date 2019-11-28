@@ -14,7 +14,7 @@ from torch.optim import lr_scheduler
 from zmq.devices import device
 from tqdm import tqdm
 from custom_dataset_npy import CustomDatasetNPY
-from net import Net
+from net import ConvNet
 import pickle
 import matplotlib
 
@@ -50,13 +50,13 @@ class Model(object):
         valid_path = "/home/gauravkuppa24/Documents/datasets/MRNet-v1.0/valid/axial"
         '''
         # Create Dataset and DataLoader for training and validation dataset
-        self.dataset_train = CustomDatasetNPY("train")
+        self.dataset_train = CustomDatasetNPY("train")[0:200]
         self.train_loader = torch.utils.data.DataLoader(
-            self.dataset_train, batch_size=4, shuffle=True  # , num_workers=4
+            self.dataset_train, batch_size=30, shuffle=False  # , num_workers=4
         )
-        self.dataset_valid = CustomDatasetNPY("valid")
+        self.dataset_valid = CustomDatasetNPY("valid")[0:25]
         self.valid_loader = torch.utils.data.DataLoader(
-            self.dataset_valid, batch_size=4, shuffle=True  # , num_workers=4
+            self.dataset_valid, batch_size=30, shuffle=False  # , num_workers=4
         )
         self.dataset_sizes = {'train':len(self.dataset_train), 'valid':len(self.dataset_valid)}
         self.dataloaders = {
@@ -64,7 +64,7 @@ class Model(object):
             'valid': self.valid_loader
         }
         # Create Neural Network with hyperparameters.
-        self.net = Net()
+        self.net = ConvNet(2)
         self.optimizer = torch.optim.Adam(
             self.net.parameters(), lr=0.01
         )  # how do you know which optim to use when?
@@ -77,7 +77,8 @@ class Model(object):
         self.device = torch.device("cpu")
 
     # TODO(G): make a train() method
-    def train(self, net, criterion, optimizer, scheduler, num_epochs=10):
+    def train(self, num_epochs=10):
+        net, criterion, optimizer, scheduler = self.net, self.criterion, self.optimizer, self.exp_lr_scheduler
         since = time.time()
         train_loss = []
         train_accuracy = []
@@ -105,17 +106,10 @@ class Model(object):
                 for i in tqdm(range(len(self.dataloaders[phase]))):
                     it = iter(self.dataloaders[phase])
                     inputs, labels = it.next()
-                    #labels = it.next()
-                    '''sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)/10), (100*(e+1)/10)))
-                    sys.stdout.flush()
-                    sys.stdout.write(", epoch %d"% (e+1))
-                    sys.stdout.flush()'''
 
                     inputs = inputs.to(self.device)
                     labels = labels.to(self.device)
                     labels = labels.long()[:,1]
-                    #print("inputs:", inputs)
-                    #print("labels:", labels)
 
                     # zero the parameter gradients
                     optimizer.zero_grad()
@@ -167,8 +161,6 @@ class Model(object):
         net.load_state_dict(best_model_wts)
         return net
 
-    
-    # TODO(G): make a evaluate() method
     def plot_images(self):
         for imgBunch, groundBunch in self.train_loader:
             print(imgBunch.shape)
@@ -180,7 +172,6 @@ class Model(object):
                 plt.imshow(img.view(256, -1), cmap="gray")
                 plt.show()
 
-    # TODO(G): make a plot_results() method
     def plot_results(self, epochs, loss_acc):
         train_loss, train_accuracy, valid_loss, valid_accuracy = loss_acc
         fig = plt.figure(figsize=(20,4))
@@ -204,49 +195,23 @@ class Model(object):
         plt.show()
 
 def main():
-    model = Model()
-    #print(model.dataset_train)
-    #model.plot_images()
+    # set random seed to 0
+    torch.manual_seed(0)
+    np.random.seed(0)
 
-    model_ft = torchvision.models.resnet34(pretrained=True)
-    num_ftrs = model_ft.fc.in_features
+    model = Model()
+    
     # Here the size of each output sample is set to 2.
     # Alternatively, it can be generalized to nn.Linear(num_ftrs, len(class_names)).
-    model_ft.fc = torch.nn.Linear(num_ftrs, 2)
-
-    model_ft = model_ft.to(torch.device('cpu'))
-
-    model.net = model_ft
-
-    criterion = torch.nn.CrossEntropyLoss()
-
-    # Observe that all parameters are being optimized
-    optimizer_ft = torch.optim.SGD(model_ft.parameters(), lr=0.001, momentum=0.9)
-
-    # Decay LR by a factor of 0.1 every 7 epochs
-    exp_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
     train_loss = []
     train_accuracy = []
     valid_loss = []
     valid_accuracy = []
-    epochs = 3
-    train_loss_pickle = open("train_loss.pickle","wb")
-    train_acc_pickle = open("train_acc.pickle","wb")
-    valid_loss_pickle = open("train_loss.pickle","wb")
-    valid_acc_pickle = open("valid_acc.pickle","wb")
+    epochs = 25
     
-    model.train(model.net, criterion, optimizer_ft, exp_lr_scheduler, num_epochs=epochs)
+    model.train(num_epochs=epochs)
     train_loss, train_accuracy = model.stats['train']
     valid_loss, valid_accuracy = model.stats['valid']
-    pickle.dump(train_loss, train_loss_pickle)
-    pickle.dump(train_accuracy, train_acc_pickle)
-    pickle.dump(valid_loss, valid_loss_pickle)
-    pickle.dump(valid_accuracy, valid_acc_pickle)
-
-    train_acc_pickle.close()
-    train_loss_pickle.close()
-    valid_acc_pickle.close()
-    valid_loss_pickle.close()
     
     loss_acc = [train_loss, train_accuracy, valid_loss, valid_accuracy]
 
@@ -255,5 +220,4 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()
